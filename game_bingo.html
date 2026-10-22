@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notebook Bingo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one column, a ruled notebook page; the 5x5 grid is the hero, players and calls sit around it */
+:root{
+  --paper:#fbfaf5; --rule:#d7e3f1; --margin:#e9a3a3;
+  --ink:#1f3a6e; --ink-soft:#5a6f96; --pen:#d2362f; --pen-soft:#f6d9d6;
+  --cell:#ffffff; --line:#b9c6da; --ok:#2f7d4f;
+  --hand:"Kalam","Comic Neue","Segoe Print",cursive;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#161c2a; --rule:#232d42; --margin:#5b2f3a;
+  --ink:#dbe5f7; --ink-soft:#8e9dbb; --pen:#ff6b5e; --pen-soft:#3b2228;
+  --cell:#1d2436; --line:#33405c; --ok:#6fcf97; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#161c2a; --rule:#232d42; --margin:#5b2f3a;
+  --ink:#dbe5f7; --ink-soft:#8e9dbb; --pen:#ff6b5e; --pen-soft:#3b2228;
+  --cell:#1d2436; --line:#33405c; --ok:#6fcf97; color-scheme:dark}
+
+html,body{min-height:100%}
+body{
+  background-color:var(--paper);
+  background-image:
+    linear-gradient(90deg,transparent 0,transparent 34px,var(--margin) 34px,var(--margin) 36px,transparent 36px),
+    repeating-linear-gradient(180deg,transparent 0,transparent 31px,var(--rule) 31px,var(--rule) 32px);
+  color:var(--ink); font-family:var(--body); font-size:15px; line-height:1.5;
+}
+.wrap{max-width:520px;margin:0 auto;padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:18px}
+h1{font-family:var(--hand);font-weight:700;font-size:2.4rem;line-height:1;margin:0;text-wrap:balance}
+h1 span{color:var(--pen)}
+.sub{color:var(--ink-soft);margin:4px 0 0}
+label{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);font-weight:700}
+input{font:inherit;font-size:1.05rem;color:var(--ink);background:var(--cell);border:1.5px solid var(--line);
+  border-radius:8px;padding:10px 12px;width:100%;box-sizing:border-box}
+input:focus-visible,button:focus-visible{outline:3px solid var(--pen);outline-offset:2px}
+.field{display:flex;flex-direction:column;gap:6px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row>.field{flex:1;min-width:140px}
+button{font:inherit;font-weight:700;cursor:pointer;border-radius:8px;padding:10px 16px;border:1.5px solid var(--ink);
+  background:var(--ink);color:var(--paper)}
+button.ghost{background:transparent;color:var(--ink)}
+button.small{padding:6px 10px;font-size:.85rem}
+button:disabled{opacity:.45;cursor:not-allowed}
+.card{background:var(--cell);border:1.5px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.or{font-family:var(--hand);color:var(--ink-soft);text-align:center;font-size:1.1rem}
+.err{color:var(--pen);font-size:.9rem;margin:0}
+.note{color:var(--ink-soft);font-size:.88rem;margin:0}
+
+/* game */
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.code{font-family:var(--hand);font-size:1.5rem;font-weight:700;letter-spacing:.08em}
+.code small{font-family:var(--body);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin-right:6px;font-weight:700}
+.players{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0}
+.players li{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1.5px solid var(--line);border-radius:999px;background:var(--cell);font-size:.9rem}
+.players li.turn{border-color:var(--pen);box-shadow:0 0 0 2px var(--pen-soft)}
+.players .dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.players li.turn .dot{background:var(--pen)}
+.players .ln{font-variant-numeric:tabular-nums;color:var(--ink-soft);font-size:.8rem}
+.status{font-family:var(--hand);font-size:1.45rem;line-height:1.2;min-height:1.8em;margin:0}
+.status.mine{color:var(--pen)}
+.letters{display:grid;grid-template-columns:repeat(5,1fr);text-align:center;font-family:var(--hand);font-weight:700;font-size:2.2rem;line-height:1}
+.letters span{position:relative;color:var(--ink-soft);transition:color .2s}
+.letters span.hit{color:var(--pen)}
+.letters span.hit::after{content:"";position:absolute;left:18%;right:18%;top:52%;height:4px;border-radius:3px;background:var(--pen);transform:rotate(-12deg)}
+.boardbox{position:relative;width:100%;max-width:100%;aspect-ratio:1}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:0;width:100%;height:100%;border:2px solid var(--ink);background:var(--cell)}
+.board button{all:unset;box-sizing:border-box;display:grid;place-items:center;position:relative;font-family:var(--hand);font-weight:700;
+  font-size:clamp(1.3rem,6vw,2rem);color:var(--ink);border-right:1.5px solid var(--line);border-bottom:1.5px solid var(--line);font-variant-numeric:tabular-nums}
+.board button:nth-child(5n){border-right:none}
+.board button:nth-child(n+21){border-bottom:none}
+.board.can button:not(.x){cursor:pointer}
+.board.can button:not(.x):hover{background:var(--pen-soft)}
+.board button:focus-visible{outline:3px solid var(--pen);outline-offset:-3px}
+.board button.x{color:var(--ink-soft)}
+.board button.x::before{content:"";position:absolute;inset:22%;border:3px solid var(--pen);border-radius:50%;opacity:.85}
+.board button.last::before{border-width:4px;opacity:1}
+@media (prefers-reduced-motion:no-preference){.board button.last::before{animation:pop .35s ease-out}}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1)}}
+svg.strokes{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+svg.strokes line{stroke:var(--pen);stroke-width:1.4;stroke-linecap:round;opacity:.75}
+.last-call{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.last-call b{font-family:var(--hand);font-size:2rem;color:var(--pen);line-height:1}
+.history{font-variant-numeric:tabular-nums;color:var(--ink-soft);font-size:.88rem;word-break:break-word;margin:0}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.win{background:var(--pen-soft);border:2px solid var(--pen);border-radius:12px;padding:12px 16px;font-family:var(--hand);font-size:1.6rem;text-align:center;line-height:1.2}
+.how{font-size:.9rem;color:var(--ink-soft)}
+.how summary{cursor:pointer;font-weight:700;color:var(--ink)}
+.how ol{padding-left:20px;margin:8px 0 0}
+body{margin:0}
+</style>
+</head><body>
+
+<div class="wrap">
+  <header>
+    <h1>Notebook <span>BINGO</span></h1>
+    <p class="sub">5×5, numbers 1 to 25. Cut five lines to win.</p>
+  </header>
+
+  <!-- LOBBY -->
+  <section id="lobby" class="card">
+    <div class="field"><label for="nick">Your name</label><input id="nick" maxlength="16" placeholder="e.g. Nabhya" autocomplete="off"></div>
+    <button id="create">Create a room</button>
+    <div class="or">or</div>
+    <div class="row">
+      <div class="field"><label for="joincode">Friend's room code</label><input id="joincode" maxlength="6" placeholder="ABCD" autocomplete="off" style="text-transform:uppercase"></div>
+      <button id="join" class="ghost">Join</button>
+    </div>
+    <div class="or">or</div>
+    <button id="bot" class="ghost">Play against the computer</button>
+    <p id="lobbyErr" class="err" hidden></p>
+    <details class="how">
+      <summary>How to play with a friend</summary>
+      <ol>
+        <li>Send your friend the link to this page.</li>
+        <li>Create a room and send them the 4-letter code.</li>
+        <li>Both of you shuffle your grids if you like. Once the first number is called, grids lock.</li>
+        <li>Take turns tapping a number on your own grid. It gets crossed on everyone's grid.</li>
+        <li>Every full row, column or diagonal cuts one letter of B-I-N-G-O. First to cut all five wins.</li>
+      </ol>
+    </details>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" hidden>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="top">
+        <div class="code" id="codeBox"><small>Room</small><span id="codeTxt"></span></div>
+        <div class="actions">
+          <button id="copy" class="ghost small">Copy code</button>
+          <button id="leave" class="ghost small">Leave</button>
+        </div>
+      </div>
+      <ul class="players" id="players"></ul>
+      <p class="status" id="status" aria-live="polite"></p>
+      <div id="win" class="win" hidden></div>
+      <div class="letters" id="letters"><span>B</span><span>I</span><span>N</span><span>G</span><span>O</span></div>
+      <div class="boardbox">
+        <div class="board" id="board" role="grid" aria-label="Your bingo grid"></div>
+        <svg class="strokes" id="strokes" viewBox="0 0 50 50" aria-hidden="true"></svg>
+      </div>
+      <div class="last-call" id="lastCall"></div>
+      <p class="history" id="history"></p>
+      <div class="actions">
+        <button id="shuffle" class="ghost">Shuffle my grid</button>
+        <button id="again">New game</button>
+      </div>
+      <p class="note" id="conn"></p>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const PREFIX="notebook-bingo-v1-";
+const LINES=[];
+for(let r=0;r<5;r++)LINES.push([0,1,2,3,4].map(c=>r*5+c));
+for(let c=0;c<5;c++)LINES.push([0,1,2,3,4].map(r=>r*5+c));
+LINES.push([0,6,12,18,24],[4,8,12,16,20]);
+const shuffle=()=>{const a=[...Array(25)].map((_,i)=>i+1);for(let i=24;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const doneLines=(board,called)=>LINES.filter(l=>l.every(i=>called.has(board[i])));
+const countLines=(board,called)=>doneLines(board,called).length;
+const clean=s=>String(s||"").replace(/[^\p{L}\p{N} ._-]/gu,"").trim().slice(0,16);
+const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+$("#nick").value=(store.get("bingo.me")||{}).nick||"";
+
+// ---------- state ----------
+// G is the shared game state. The host owns it and sends it to everyone.
+let G=null;            // {round, players:[{id,nick,lines}], order:[{n,by,id}]}
+let me=null;           // {id, nick, board, round, mode:'host'|'guest'|'bot', code}
+let peer=null, hostConn=null;
+const conns=new Map(); // host only: peerId -> connection
+let botBoard=null, botTimer=null;
+
+function err(m){const e=$("#lobbyErr");e.textContent=m||"";e.hidden=!m}
+function getNick(){const n=clean($("#nick").value);if(!n){err("Type your name first.");$("#nick").focus();return null}store.set("bingo.me",{nick:n});return n}
+function newCode(){const A="ABCDEFGHJKMNPQRSTUVWXYZ23456789";let s="";for(let i=0;i<4;i++)s+=A[Math.floor(Math.random()*A.length)];return s}
+function setBusy(b){["#create","#join","#bot"].forEach(s=>$(s).disabled=b)}
+
+// ---------- host logic (also used for vs-computer) ----------
+const called=()=>new Set(G.order.map(o=>o.n));
+const winners=()=>G.players.filter(p=>p.lines>=5);
+const turnPlayer=()=>G.players.length>=2?G.players[G.order.length%G.players.length]:null;
+
+function hostHandle(fromId,msg){
+  if(!msg||typeof msg!=="object")return;
+  const p=G.players.find(x=>x.id===fromId);
+  if(msg.type==="hello"){
+    const nick=clean(msg.nick)||"Player";
+    if(p)p.nick=nick; else G.players.push({id:fromId,nick,lines:0});
+  }else if(!p){return}
+  else if(msg.type==="call"){
+    const n=+msg.n, t=turnPlayer();
+    if(!t||t.id!==fromId||winners().length||!(n>=1&&n<=25)||called().has(n))return;
+    G.order.push({n,by:p.nick,id:fromId});
+  }else if(msg.type==="lines"){
+    p.lines=Math.max(0,Math.min(12,+msg.lines||0));
+  }else if(msg.type==="again"){
+    if(!(winners().length||G.order.length>=25))return;
+    G.round++;G.order=[];G.players.forEach(x=>x.lines=0);
+  }else return;
+  broadcast();
+}
+function broadcast(){
+  if(me.mode==="bot"){G.players[1].lines=countLines(botBoard,called())}
+  conns.forEach(c=>{if(c.open)try{c.send({type:"state",G})}catch(e){}});
+  onState(G);
+}
+function send(msg){
+  if(me.mode==="guest"){if(hostConn&&hostConn.open)hostConn.send(msg)}
+  else hostHandle(me.id,msg);
+}
+
+// ---------- every client ----------
+function onState(state){
+  G=JSON.parse(JSON.stringify(state));
+  if(G.round!==me.round){me.round=G.round;me.board=shuffle()}
+  const mine=G.players.find(p=>p.id===me.id);
+  const l=countLines(me.board,called());
+  if(mine&&mine.lines!==l){send({type:"lines",lines:l});return}
+  render();
+  if(me.mode==="bot")maybeBot();
+}
+
+// ---------- start modes ----------
+function createRoom(tries){
+  const nick=getNick();if(!nick)return;
+  if(typeof Peer==="undefined"){err("Couldn't load the connection library. Check your internet and reload.");return}
+  err("");setBusy(true);
+  const code=newCode();
+  peer=new Peer(PREFIX+code);
+  peer.on("open",()=>{
+    me={id:"host",nick,board:shuffle(),round:0,mode:"host",code};
+    G={round:0,players:[{id:"host",nick,lines:0}],order:[]};
+    show();broadcast();setBusy(false);
+  });
+  peer.on("connection",conn=>{
+    conn.on("open",()=>{conns.set(conn.peer,conn);conn.send({type:"state",G})});
+    conn.on("data",d=>hostHandle(conn.peer,d));
+    const drop=()=>{if(!conns.has(conn.peer))return;conns.delete(conn.peer);
+      // keep the turn fair: only remove players before the game starts or if they are gone for good
+      G.players=G.players.filter(p=>p.id!==conn.peer);broadcast()};
+    conn.on("close",drop);conn.on("error",drop);
+  });
+  peer.on("error",e=>{
+    if(e.type==="unavailable-id"&&(tries||0)<3){peer.destroy();createRoom((tries||0)+1);return}
+    setBusy(false);
+    if(!me)err("Couldn't create a room ("+e.type+"). Check your internet and try again.");
+    else $("#conn").textContent="Connection problem: "+e.type;
+  });
+  peer.on("disconnected",()=>{try{peer.reconnect()}catch(e){}});
+}
+function joinRoom(code){
+  const nick=getNick();if(!nick)return;
+  if(typeof Peer==="undefined"){err("Couldn't load the connection library. Check your internet and reload.");return}
+  err("");setBusy(true);
+  peer=new Peer();
+  let opened=false;
+  const t=setTimeout(()=>{if(!opened){setBusy(false);err("No room found with code "+code+". Check the code and that your friend still has the game open.");try{peer.destroy()}catch(e){}}},12000);
+  peer.on("open",id=>{
+    hostConn=peer.connect(PREFIX+code,{reliable:true});
+    hostConn.on("open",()=>{opened=true;clearTimeout(t);
+      me={id,nick,board:shuffle(),round:-1,mode:"guest",code};
+      show();hostConn.send({type:"hello",nick});setBusy(false)});
+    hostConn.on("data",d=>{if(d&&d.type==="state"&&d.G)onState(d.G)});
+    hostConn.on("close",()=>{if(me){$("#status").textContent="The host left the game.";$("#board").classList.remove("can");[...$("#board").children].forEach(c=>c.disabled=true)}});
+  });
+  peer.on("error",e=>{
+    if(e.type==="peer-unavailable"){clearTimeout(t);setBusy(false);err("No room found with code "+code+". Check the code and that your friend still has the game open.");return}
+    if(!opened){clearTimeout(t);setBusy(false);err("Couldn't connect ("+e.type+"). Try again.")}
+    else $("#conn").textContent="Connection problem: "+e.type;
+  });
+}
+function startBot(){
+  const nick=getNick();if(!nick)return;err("");
+  me={id:"host",nick,board:shuffle(),round:0,mode:"bot",code:""};
+  botBoard=shuffle();
+  G={round:0,players:[{id:"host",nick,lines:0},{id:"bot",nick:"Computer",lines:0}],order:[]};
+  show();broadcast();
+}
+function maybeBot(){
+  const t=turnPlayer();
+  if(!t||t.id!=="bot"||winners().length||G.order.length>=25||botTimer)return;
+  botTimer=setTimeout(()=>{botTimer=null;
+    const c=called();let best=null,score=-1;
+    for(let n=1;n<=25;n++){if(c.has(n))continue;const i=botBoard.indexOf(n);let s=Math.random()*.5;
+      LINES.forEach(l=>{if(l.includes(i)){const k=l.filter(j=>c.has(botBoard[j])).length;s+=k*k+1}});
+      if(s>score){score=s;best=n}}
+    if(best!=null)hostHandle("bot",{type:"call",n:best});
+  },850);
+}
+function show(){
+  $("#lobby").hidden=true;$("#game").hidden=false;
+  const room=me.mode!=="bot";$("#codeBox").hidden=!room;$("#copy").hidden=!room;
+  $("#codeTxt").textContent=me.code;
+}
+function leave(){
+  clearTimeout(botTimer);botTimer=null;
+  try{peer&&peer.destroy()}catch(e){}
+  peer=null;hostConn=null;conns.clear();G=null;me=null;
+  $("#game").hidden=true;$("#lobby").hidden=false;setBusy(false);$("#conn").textContent="";
+}
+
+// ---------- render ----------
+function render(){
+  if(!G||!me)return;
+  const c=called(), total=G.order.length, ws=winners(), t=turnPlayer();
+  const myTurn=!!(t&&t.id===me.id&&!ws.length&&total<25);
+
+  const ul=$("#players");ul.textContent="";
+  G.players.forEach(p=>{
+    const li=document.createElement("li");if(t&&p.id===t.id&&!ws.length)li.className="turn";
+    const d=document.createElement("span");d.className="dot";
+    const nm=document.createElement("span");nm.textContent=p.nick+(p.id===me.id?" (you)":"");
+    const ln=document.createElement("span");ln.className="ln";
+    ln.textContent=p.lines?"BINGO".slice(0,Math.min(5,p.lines)).split("").join("·"):"0 lines";
+    li.append(d,nm,ln);ul.append(li);
+  });
+
+  const st=$("#status");st.classList.toggle("mine",myTurn);
+  if(ws.length)st.textContent="Game over.";
+  else if(!t)st.textContent="Waiting for your friend to join with code "+me.code+"…";
+  else if(total>=25)st.textContent="All numbers called.";
+  else if(myTurn)st.textContent="Your turn. Tap a number to call it.";
+  else st.textContent=t.nick+" is picking…";
+
+  const w=$("#win");
+  if(ws.length){w.hidden=false;w.textContent=ws.map(x=>x.id===me.id?"You":x.nick).join(" & ")+" got BINGO!"}
+  else w.hidden=true;
+
+  const ml=countLines(me.board,c);
+  [...$("#letters").children].forEach((s,i)=>s.classList.toggle("hit",i<ml));
+
+  const last=total?G.order[total-1].n:null;
+  const b=$("#board");b.classList.toggle("can",myTurn);
+  if(b.children.length!==25){b.textContent="";for(let i=0;i<25;i++){const x=document.createElement("button");x.type="button";x.dataset.i=i;b.append(x)}}
+  [...b.children].forEach((x,i)=>{const n=me.board[i];x.textContent=n;
+    x.classList.toggle("x",c.has(n));x.classList.toggle("last",n===last);
+    x.setAttribute("aria-label",n+(c.has(n)?" crossed":""));x.disabled=!myTurn||c.has(n)});
+
+  const svg=$("#strokes");svg.textContent="";
+  doneLines(me.board,c).forEach(l=>{const a=l[0],z=l[4];
+    const x1=(a%5)*10+5,y1=Math.floor(a/5)*10+5,x2=(z%5)*10+5,y2=Math.floor(z/5)*10+5;
+    const dx=Math.sign(x2-x1)*3,dy=Math.sign(y2-y1)*3;
+    const ln=document.createElementNS("http://www.w3.org/2000/svg","line");
+    ln.setAttribute("x1",x1-dx);ln.setAttribute("y1",y1-dy);ln.setAttribute("x2",x2+dx);ln.setAttribute("y2",y2+dy);svg.append(ln)});
+
+  const lc=$("#lastCall");lc.textContent="";
+  if(last!=null){const s=document.createElement("span");s.textContent="Last called";const bb=document.createElement("b");bb.textContent=last;
+    const by=document.createElement("span");by.className="note";by.textContent="by "+(G.order[total-1].id===me.id?"you":G.order[total-1].by);lc.append(s,bb,by)}
+  $("#history").textContent=total?"Called so far: "+G.order.map(o=>o.n).join(", "):"";
+
+  $("#shuffle").disabled=total>0;
+  $("#again").hidden=!(ws.length||total>=25);
+}
+
+// ---------- controls ----------
+$("#board").addEventListener("click",e=>{
+  const x=e.target.closest("button");if(!x||x.disabled||!G)return;
+  send({type:"call",n:me.board[+x.dataset.i]});
+});
+$("#shuffle").onclick=()=>{if(!G||G.order.length)return;me.board=shuffle();render()};
+$("#again").onclick=()=>{if(me.mode==="bot")botBoard=shuffle();send({type:"again"})};
+$("#create").onclick=()=>createRoom(0);
+$("#join").onclick=()=>{const c=$("#joincode").value.toUpperCase().replace(/[^A-Z0-9]/g,"");if(c.length!==4){err("Room codes are 4 characters.");return}joinRoom(c)};
+$("#joincode").addEventListener("keydown",e=>{if(e.key==="Enter")$("#join").click()});
+$("#bot").onclick=startBot;
+$("#leave").onclick=leave;
+$("#copy").onclick=()=>{if(!me)return;const done=()=>{$("#copy").textContent="Copied";setTimeout(()=>$("#copy").textContent="Copy code",1500)};
+  try{navigator.clipboard.writeText(me.code).then(done,()=>{})}catch(e){}};
+window.addEventListener("beforeunload",()=>{try{peer&&peer.destroy()}catch(e){}});
+})();
+</script>
+</body></html>
